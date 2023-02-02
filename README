@@ -1,0 +1,64 @@
+
+Step by step guide for SP-DCA
+
+	Install psipred in your PATH  https://github.com/psipred/psipred
+	Download and install Jalview https://www.jalview.org/download/linux/
+	Install python2 
+	Install Matlab
+	Download files : convolution_kernel.zip, compute.zip, dca_scripts.R, hetero_dimer_info.R
+	Download files : go to https://www.ncbi.nlm.nih.gov/ and download the fasta files of both proteinA and proteinB. The two proteins should come from the “Homo sapiens” species.
+	Run blast : in the same link click on “Run blast”, this will open a new window. Now, set up the parameter such as program selection we recommend to choose blastp,  Algorithm parameters (Max target sequences : the maximum number of aligned sequences to display equals 5000 ), tick the box low complexity regions.
+	Blast : when everything is set, just click on BLAST. It will take a time to complete. After the complete running download the FASTA (complete sequence) and save each of them like proteinA_aligned.blast and proteinB_aligned.blast
+
+For the next steps, we recommend to use Linux 
+	From the terminal,
+1) Create a working directory
+      mkdir SPDCA_project
+2) Go to this directory and create sub-directories
+       mkdir Fasta-data
+       mkdir results
+       mkdir Blast-data
+       mkdir MSA-data
+       mkdir proteinA_proteinB
+3) Copy the fasta files from their current directory to Fasta-data directory
+4) Copy the .blast files from their current directory to Blast-data directory
+5) Go to convolution_kernel.zip, unzip the file and compile the kernel program attached (simple c++ code)
+        g++ cconvo_idea.C -o convolve_dca
+Adding the generated file convolve_dca in your PATH to make it executable.
+
+	From R (we would advise to install Rstudio)
+1) Open the files dca_scripts.R and hetero_dimer_info.R
+2) Set a working directory (wherever these .R files are saved)
+3) Go to “dca_scripts_master.R” file and load_required_libraries().  You should have error messages asking to install the packages, please do so until you have no more errors.
+4) Run the function compute_msa_and_align(), please add the necessary arguments. This will concatenate and align your two sequences from the different monomers.
+> compute_msa_and_align(“proteinA_aligned.blast”, “proteinB_aligned.blast”, type_fast1 = NULL, type_fast2 = NULL, one_msa = NULL, ref_species = “Homo_sapiens”, out_file, cut = 5)
+
+This will generate two files in MSA-data folder: proteinA_aligned_proteinB_aligned_joined.fasta and proteinA_aligned_proteinB_aligned_msa.fasta.
+5)  It is necessary to have the right file before starting the DCA. In fact, the aligned sequence should be with the capital letters and not with the small letters. So, open Jalview, then click on “File” below the jalview symbol. Go to “input alignment”, and then “From file”,  select the file proteinA_aligned_proteinB_aligned_msa.fasta and click on “open”. This will open a new window with your aligned sequence. In this window, just click on “File”, and save it like “proteinA_proteinB.fasta”
+
+	Returning to your terminal 
+1) Copy the proteinA_proteinB.fasta file from its current directory to proteinA_proteinB folder
+2) Copy all the files from compute.zip to proteinA_proteinB folder
+3) Go to proteinA_proteinB directory and run
+             ./prepare_msa_for_dca.sh  proteinA_proteinB.fasta
+After running, this will generate 4 files (*.hamming_input, *.nodups, *.nogaps, *.weight.table). 
+
+4)  Configure the computing code (run_unique_dca_matlab.sh)
+- At the line2, rand_fasta=…..; replace the term between “” by the name of your complex (proteinA_proteinB.fasta).
+- At the line5, dca=…..; replace the term between quote (“”) by any name you want but don’t change the extension (the best one is generally proteinA_proteinB.dca_scores).
+- close the file!
+
+5) Configure the lines 2, 3, and 10 of the manager of jobs (jobs_sbatch.sh) and then save and close it.
+
+6) Running simulation
+               sbatch jobs_sbatch.sh
+
+If you perform everything rightly, you will get “proteinA_proteinB.dca_scores” that will contain the results of coupling.
+
+NB: we recommend to connect you to a powerful calculator for running the simulation.
+
+7)  Returning to R after getting the  proteinA_proteinB.dca_scores
+
+	From R,
+1) Activate all the functions in dca_scripts.R
+2) Plot the SP-DCA map using plot_dca_convolution() function 
